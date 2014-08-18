@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/cayley/graph"
+	"github.com/jsccast/cayley/graph"
 )
 
 // The And iterator. Consists of a number of subiterators, the primary of which will

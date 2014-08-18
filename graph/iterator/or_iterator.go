@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/cayley/graph"
+	"github.com/jsccast/cayley/graph"
 )
 
 type Or struct {

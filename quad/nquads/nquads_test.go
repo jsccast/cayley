@@ -25,7 +25,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/cayley/quad"
+	"github.com/jsccast/cayley/quad"
 )
 
 var testNTriples = []struct {

@@ -17,7 +17,7 @@ package iterator
 import (
 	"sort"
 
-	"github.com/google/cayley/graph"
+	"github.com/jsccast/cayley/graph"
 )
 
 // Perhaps the most tricky file in this entire module. Really a method on the

@@ -22,7 +22,7 @@ import (
 
 	"github.com/barakmich/glog"
 
-	"github.com/google/cayley/graph"
+	"github.com/jsccast/cayley/graph"
 )
 
 var abortMaterializeAt = 1000

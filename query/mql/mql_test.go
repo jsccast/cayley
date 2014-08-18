@@ -19,9 +19,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/cayley/graph"
-	_ "github.com/google/cayley/graph/memstore"
-	"github.com/google/cayley/quad"
+	"github.com/jsccast/cayley/graph"
+	_ "github.com/jsccast/cayley/graph/memstore"
+	"github.com/jsccast/cayley/quad"
 )
 
 // This is a simple test graph.

@@ -32,18 +32,19 @@ import (
 
 	"github.com/barakmich/glog"
 
-	"github.com/google/cayley/config"
-	"github.com/google/cayley/db"
-	"github.com/google/cayley/graph"
-	"github.com/google/cayley/http"
-	"github.com/google/cayley/quad"
-	"github.com/google/cayley/quad/cquads"
-	"github.com/google/cayley/quad/nquads"
+	"github.com/jsccast/cayley/config"
+	"github.com/jsccast/cayley/db"
+	"github.com/jsccast/cayley/graph"
+	"github.com/jsccast/cayley/http"
+	"github.com/jsccast/cayley/quad"
+	"github.com/jsccast/cayley/quad/cquads"
+	"github.com/jsccast/cayley/quad/nquads"
 
 	// Load all supported backends.
-	_ "github.com/google/cayley/graph/leveldb"
-	_ "github.com/google/cayley/graph/memstore"
-	_ "github.com/google/cayley/graph/mongo"
+	// _ "github.com/jsccast/cayley/graph/leveldb"
+	_ "github.com/jsccast/cayley/graph/memstore"
+	_ "github.com/jsccast/cayley/graph/mongo"
+	_ "github.com/jsccast/cayley/graph/rocksdb"
 )
 
 var (
@@ -120,15 +121,18 @@ func main() {
 	case "init":
 		err = db.Init(cfg)
 		if err != nil {
+			panic(err)
 			break
 		}
 		if *tripleFile != "" {
 			ts, err = db.Open(cfg)
 			if err != nil {
+				panic(err)
 				break
 			}
 			err = load(ts, cfg, *tripleFile, *tripleType)
 			if err != nil {
+				panic(err)
 				break
 			}
 			ts.Close()
@@ -137,10 +141,12 @@ func main() {
 	case "load":
 		ts, err = db.Open(cfg)
 		if err != nil {
+			panic(err)
 			break
 		}
 		err = load(ts, cfg, *tripleFile, *tripleType)
 		if err != nil {
+			panic(err)
 			break
 		}
 
@@ -149,11 +155,13 @@ func main() {
 	case "repl":
 		ts, err = db.Open(cfg)
 		if err != nil {
+			panic(err)
 			break
 		}
 		if !graph.IsPersistent(cfg.DatabaseType) {
 			err = load(ts, cfg, "", *tripleType)
 			if err != nil {
+				panic(err)
 				break
 			}
 		}
@@ -188,6 +196,8 @@ func main() {
 }
 
 func load(ts graph.TripleStore, cfg *config.Config, path, typ string) error {
+	glog.Infoln("Loading", path, typ)
+
 	var r io.Reader
 
 	if path == "" {

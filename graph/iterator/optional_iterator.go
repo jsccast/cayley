@@ -30,7 +30,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/cayley/graph"
+	"github.com/jsccast/cayley/graph"
 )
 
 // An optional iterator has the sub-constraint iterator we wish to be optional

@@ -28,7 +28,7 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/google/cayley/quad"
+	"github.com/jsccast/cayley/quad"
 )
 
 // Decoder implements simplified N-Quad document parsing.

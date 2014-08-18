@@ -11,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/google/cayley/graph"
+	"github.com/jsccast/cayley/graph"
 )
 
 func main() {

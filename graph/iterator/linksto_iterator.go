@@ -33,8 +33,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/cayley/graph"
-	"github.com/google/cayley/quad"
+	"github.com/jsccast/cayley/graph"
+	"github.com/jsccast/cayley/quad"
 )
 
 // A LinksTo has a reference back to the graph.TripleStore (to create the iterators

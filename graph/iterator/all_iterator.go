@@ -26,7 +26,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/cayley/graph"
+	"github.com/jsccast/cayley/graph"
 )
 
 // An All iterator across a range of int64 values, from `max` to `min`.

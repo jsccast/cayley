@@ -21,8 +21,8 @@ import (
 
 	"github.com/petar/GoLLRB/llrb"
 
-	"github.com/google/cayley/graph"
-	"github.com/google/cayley/graph/iterator"
+	"github.com/jsccast/cayley/graph"
+	"github.com/jsccast/cayley/graph/iterator"
 )
 
 type Iterator struct {

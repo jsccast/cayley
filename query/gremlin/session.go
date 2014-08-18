@@ -23,8 +23,8 @@ import (
 
 	"github.com/robertkrimen/otto"
 
-	"github.com/google/cayley/graph"
-	"github.com/google/cayley/query"
+	"github.com/jsccast/cayley/graph"
+	"github.com/jsccast/cayley/query"
 )
 
 var ErrKillTimeout = errors.New("query timed out")

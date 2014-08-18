@@ -22,9 +22,9 @@ import (
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/google/cayley/graph"
-	"github.com/google/cayley/graph/iterator"
-	"github.com/google/cayley/quad"
+	"github.com/jsccast/cayley/graph"
+	"github.com/jsccast/cayley/graph/iterator"
+	"github.com/jsccast/cayley/quad"
 )
 
 type Iterator struct {

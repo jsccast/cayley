@@ -39,8 +39,8 @@ import (
 
 	"github.com/barakmich/glog"
 
-	"github.com/google/cayley/graph"
-	"github.com/google/cayley/quad"
+	"github.com/jsccast/cayley/graph"
+	"github.com/jsccast/cayley/quad"
 )
 
 // A HasA consists of a reference back to the graph.TripleStore that it references,

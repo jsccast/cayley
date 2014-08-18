@@ -17,10 +17,10 @@ package sexp
 import (
 	"testing"
 
-	"github.com/google/cayley/graph"
-	"github.com/google/cayley/quad"
+	"github.com/jsccast/cayley/graph"
+	"github.com/jsccast/cayley/quad"
 
-	_ "github.com/google/cayley/graph/memstore"
+	_ "github.com/jsccast/cayley/graph/memstore"
 )
 
 func TestBadParse(t *testing.T) {

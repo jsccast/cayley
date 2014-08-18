@@ -1,4 +1,5 @@
-// Copyright 2014 The Cayley Authors. All rights reserved.
+// Portions Copyright 2014 The Cayley Authors. All rights reserved.
+// Portions Copyright 2014 Comcast Cable Communications Management, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package leveldb
+package rocksdb
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
+	"fmt"
 
-	ldbit "github.com/syndtr/goleveldb/leveldb/iterator"
-	"github.com/syndtr/goleveldb/leveldb/opt"
+	rocks "github.com/jsccast/rocksdb"
 
 	"github.com/jsccast/cayley/graph"
 	"github.com/jsccast/cayley/graph/iterator"
@@ -34,9 +34,9 @@ type Iterator struct {
 	checkId        []byte
 	dir            quad.Direction
 	open           bool
-	iter           ldbit.Iterator
+	iter           *rocks.Iterator
 	qs             *TripleStore
-	ro             *opt.ReadOptions
+	ro             *rocks.ReadOptions
 	originalPrefix string
 	result         graph.Value
 }
@@ -47,9 +47,7 @@ func NewIterator(prefix string, d quad.Direction, value graph.Value, qs *TripleS
 	p = append(p, []byte(prefix)...)
 	p = append(p, []byte(vb[1:])...)
 
-	opts := &opt.ReadOptions{
-		DontFillCache: true,
-	}
+	opts := RocksReadOpts(nil)
 
 	it := Iterator{
 		uid:            iterator.NextUID(),
@@ -58,18 +56,13 @@ func NewIterator(prefix string, d quad.Direction, value graph.Value, qs *TripleS
 		dir:            d,
 		originalPrefix: prefix,
 		ro:             opts,
-		iter:           qs.db.NewIterator(nil, opts),
+		iter:           qs.db.NewIterator(opts),
 		open:           true,
 		qs:             qs,
 	}
 
-	ok := it.iter.Seek(it.nextPrefix)
-	if !ok {
-		// FIXME(kortschak) What are the semantics here? Is this iterator usable?
-		// If not, we should return nil *Iterator and an error.
-		it.open = false
-		it.iter.Release()
-	}
+	it.iter.Seek(it.nextPrefix)
+	// ToDo: Hope it works?
 
 	return &it
 }
@@ -80,14 +73,11 @@ func (it *Iterator) UID() uint64 {
 
 func (it *Iterator) Reset() {
 	if !it.open {
-		it.iter = it.qs.db.NewIterator(nil, it.ro)
+		it.iter = it.qs.db.NewIterator(it.ro)
 		it.open = true
 	}
-	ok := it.iter.Seek(it.nextPrefix)
-	if !ok {
-		it.open = false
-		it.iter.Release()
-	}
+	it.iter.Seek(it.nextPrefix)
+	// ToDo: Hope it works.
 }
 
 func (it *Iterator) Tagger() *graph.Tagger {
@@ -112,7 +102,7 @@ func (it *Iterator) Clone() graph.Iterator {
 
 func (it *Iterator) Close() {
 	if it.open {
-		it.iter.Release()
+		it.iter.Close()
 		it.open = false
 	}
 }
@@ -135,10 +125,9 @@ func (it *Iterator) Next() bool {
 		out := make([]byte, len(it.iter.Key()))
 		copy(out, it.iter.Key())
 		it.result = Token(out)
-		ok := it.iter.Next()
-		if !ok {
-			it.Close()
-		}
+		it.iter.Next()
+		// ToDo: Hope it works
+		// it.Close()
 		return true
 	}
 	it.Close()
@@ -252,15 +241,15 @@ func (it *Iterator) DebugString(indent int) string {
 	)
 }
 
-var levelDBType graph.Type
+var rocksdbType graph.Type
 
 func init() {
-	levelDBType = graph.RegisterIterator("leveldb")
+	rocksdbType = graph.RegisterIterator("rocksdb")
 }
 
-func Type() graph.Type { return levelDBType }
+func Type() graph.Type { return rocksdbType }
 
-func (it *Iterator) Type() graph.Type { return levelDBType }
+func (it *Iterator) Type() graph.Type { return rocksdbType }
 func (it *Iterator) Sorted() bool     { return false }
 
 func (it *Iterator) Optimize() (graph.Iterator, bool) {

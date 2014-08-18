@@ -1,4 +1,5 @@
-// Copyright 2014 The Cayley Authors. All rights reserved.
+// Portions Copyright 2014 Comcast Cable Communications Management, LLC
+// Portions Copyright 2014 The Cayley Authors. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,34 +13,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package leveldb
+package rocksdb
 
 import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"hash"
 	"sync"
 
 	"github.com/barakmich/glog"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/cache"
-	"github.com/syndtr/goleveldb/leveldb/opt"
-	"github.com/syndtr/goleveldb/leveldb/util"
-
 	"github.com/jsccast/cayley/graph"
 	"github.com/jsccast/cayley/graph/iterator"
 	"github.com/jsccast/cayley/quad"
+
+	rocks "github.com/jsccast/rocksdb"
 )
 
+var rocksErrNotFound error = nil
+
 func init() {
-	graph.RegisterTripleStore("leveldb", true, newTripleStore, createNewLevelDB)
+	graph.RegisterTripleStore("rocksdb", true, NewTripleStore, CreateNewRocksDB)
 }
 
 const (
-	DefaultCacheSize       = 2
+	// DefaultCacheSize       = 2
 	DefaultWriteBufferSize = 20
 )
 
@@ -57,71 +56,53 @@ func (t Token) Key() interface{} {
 }
 
 type TripleStore struct {
-	dbOpts    *opt.Options
-	db        *leveldb.DB
+	dbOpts    *rocks.Options
+	db        *rocks.DB
 	path      string
 	open      bool
 	size      int64
-	writeopts *opt.WriteOptions
-	readopts  *opt.ReadOptions
+	writeopts *rocks.WriteOptions
+	readopts  *rocks.ReadOptions
 }
 
-func createNewLevelDB(path string, _ graph.Options) error {
-	opts := &opt.Options{}
-	db, err := leveldb.OpenFile(path, opts)
+func CreateNewRocksDB(path string, options graph.Options) error {
+	opts := RocksOpts(&options)
+	opts.SetCreateIfMissing(true)
+	opts.SetErrorIfExists(false) // ToDo
+	db, err := rocks.Open(path, opts)
 	if err != nil {
-		glog.Errorf("Error: couldn't create database: %v", err)
+		glog.Errorln("Error: couldn't create database: ", err)
 		return err
 	}
-	defer db.Close()
-	qs := &TripleStore{}
-	qs.db = db
-	qs.writeopts = &opt.WriteOptions{
-		Sync: true,
-	}
-	qs.Close()
+
+	ts := &TripleStore{}
+	ts.db = db
+	wopts := RocksWriteOpts(&options)
+	wopts.SetSync(true)
+	ts.writeopts = wopts
+	ts.Close()
 	return nil
 }
 
-func newTripleStore(path string, options graph.Options) (graph.TripleStore, error) {
-	var qs TripleStore
-	qs.path = path
-	cache_size := DefaultCacheSize
-	if val, ok := options.IntKey("cache_size_mb"); ok {
-		cache_size = val
-	}
-	qs.dbOpts = &opt.Options{
-		BlockCache: cache.NewLRUCache(cache_size * opt.MiB),
-	}
-	qs.dbOpts.ErrorIfMissing = true
+func NewTripleStore(path string, options graph.Options) (graph.TripleStore,error) {
+	var ts TripleStore
+	ts.path = path
+	opts := RocksOpts(&options)
 
-	write_buffer_mb := DefaultWriteBufferSize
-	if val, ok := options.IntKey("write_buffer_mb"); ok {
-		write_buffer_mb = val
-	}
-	qs.dbOpts.WriteBuffer = write_buffer_mb * opt.MiB
-	qs.writeopts = &opt.WriteOptions{
-		Sync: false,
-	}
-	qs.readopts = &opt.ReadOptions{}
-	db, err := leveldb.OpenFile(qs.path, qs.dbOpts)
+	db, err := rocks.Open(ts.path, opts)
 	if err != nil {
-		panic("Error, couldn't open! " + err.Error())
+		return &ts, err
 	}
-	qs.db = db
-	glog.Infoln(qs.GetStats())
-	qs.getSize()
-	return &qs, nil
-}
+	ts.db = db
+	
+	// ts.hasher = sha1.New()
+	ts.readopts = RocksReadOpts(&options)
+	ts.writeopts = RocksWriteOpts(&options)
+	// glog.Error(ts.GetStats())
 
-func (qs *TripleStore) GetStats() string {
-	out := ""
-	stats, err := qs.db.GetProperty("leveldb.stats")
-	if err == nil {
-		out += fmt.Sprintln("Stats: ", stats)
-	}
-	out += fmt.Sprintln("Size: ", qs.size)
-	return out
+	ts.getSize()
+	
+	return &ts, nil
 }
 
 func (qs *TripleStore) Size() int64 {
@@ -157,9 +138,9 @@ func (qs *TripleStore) createValueKeyFor(s string) []byte {
 }
 
 func (qs *TripleStore) AddTriple(t quad.Quad) {
-	batch := &leveldb.Batch{}
+	batch := &rocks.WriteBatch{}
 	qs.buildWrite(batch, t)
-	err := qs.db.Write(batch, qs.writeopts)
+	err := qs.db.Write(qs.writeopts, batch)
 	if err != nil {
 		glog.Errorf("Couldn't write to DB for triple %s.", t)
 		return
@@ -176,16 +157,13 @@ var (
 )
 
 func (qs *TripleStore) RemoveTriple(t quad.Quad) {
-	_, err := qs.db.Get(qs.createKeyFor(spo, t), qs.readopts)
-	if err != nil && err != leveldb.ErrNotFound {
+	_, err := qs.db.Get(qs.readopts, qs.createKeyFor(spo, t))
+	if err != nil && err != rocksErrNotFound {
 		glog.Error("Couldn't access DB to confirm deletion")
 		return
 	}
-	if err == leveldb.ErrNotFound {
-		// No such triple in the database, forget about it.
-		return
-	}
-	batch := &leveldb.Batch{}
+
+	batch := &rocks.WriteBatch{}
 	batch.Delete(qs.createKeyFor(spo, t))
 	batch.Delete(qs.createKeyFor(osp, t))
 	batch.Delete(qs.createKeyFor(pos, t))
@@ -196,7 +174,7 @@ func (qs *TripleStore) RemoveTriple(t quad.Quad) {
 		batch.Delete(qs.createProvKeyFor(pso, t))
 		qs.UpdateValueKeyBy(t.Get(quad.Label), -1, batch)
 	}
-	err = qs.db.Write(batch, nil)
+	err = qs.db.Write(nil, batch)
 	if err != nil {
 		glog.Errorf("Couldn't delete triple %s.", t)
 		return
@@ -204,7 +182,7 @@ func (qs *TripleStore) RemoveTriple(t quad.Quad) {
 	qs.size--
 }
 
-func (qs *TripleStore) buildTripleWrite(batch *leveldb.Batch, t quad.Quad) {
+func (qs *TripleStore) buildTripleWrite(batch *rocks.WriteBatch, t quad.Quad) {
 	bytes, err := json.Marshal(t)
 	if err != nil {
 		glog.Errorf("Couldn't write to buffer for triple %s: %s", t, err)
@@ -218,7 +196,7 @@ func (qs *TripleStore) buildTripleWrite(batch *leveldb.Batch, t quad.Quad) {
 	}
 }
 
-func (qs *TripleStore) buildWrite(batch *leveldb.Batch, t quad.Quad) {
+func (qs *TripleStore) buildWrite(batch *rocks.WriteBatch, t quad.Quad) {
 	qs.buildTripleWrite(batch, t)
 	qs.UpdateValueKeyBy(t.Get(quad.Subject), 1, nil)
 	qs.UpdateValueKeyBy(t.Get(quad.Predicate), 1, nil)
@@ -233,19 +211,19 @@ type ValueData struct {
 	Size int64
 }
 
-func (qs *TripleStore) UpdateValueKeyBy(name string, amount int, batch *leveldb.Batch) {
+func (qs *TripleStore) UpdateValueKeyBy(name string, amount int, batch *rocks.WriteBatch) {
 	value := &ValueData{name, int64(amount)}
 	key := qs.createValueKeyFor(name)
-	b, err := qs.db.Get(key, qs.readopts)
+	b, err := qs.db.Get(qs.readopts, key)
 
 	// Error getting the node from the database.
-	if err != nil && err != leveldb.ErrNotFound {
+	if err != nil && err != rocksErrNotFound {
 		glog.Errorf("Error reading Value %s from the DB.", name)
 		return
 	}
 
 	// Node exists in the database -- unmarshal and update.
-	if b != nil && err != leveldb.ErrNotFound {
+	if b != nil && err != rocksErrNotFound {
 		err = json.Unmarshal(b, value)
 		if err != nil {
 			glog.Errorf("Error: couldn't reconstruct value: %v", err)
@@ -258,7 +236,7 @@ func (qs *TripleStore) UpdateValueKeyBy(name string, amount int, batch *leveldb.
 	if amount < 0 {
 		if value.Size <= 0 {
 			if batch == nil {
-				qs.db.Delete(key, qs.writeopts)
+				qs.db.Delete(qs.writeopts, key)
 			} else {
 				batch.Delete(key)
 			}
@@ -273,14 +251,14 @@ func (qs *TripleStore) UpdateValueKeyBy(name string, amount int, batch *leveldb.
 		return
 	}
 	if batch == nil {
-		qs.db.Put(key, bytes, qs.writeopts)
+		qs.db.Put(qs.writeopts, key, bytes)
 	} else {
 		batch.Put(key, bytes)
 	}
 }
 
 func (qs *TripleStore) AddTripleSet(t_s []quad.Quad) {
-	batch := &leveldb.Batch{}
+	batch := rocks.NewWriteBatch()
 	newTs := len(t_s)
 	resizeMap := make(map[string]int)
 	for _, t := range t_s {
@@ -295,7 +273,7 @@ func (qs *TripleStore) AddTripleSet(t_s []quad.Quad) {
 	for k, v := range resizeMap {
 		qs.UpdateValueKeyBy(k, v, batch)
 	}
-	err := qs.db.Write(batch, qs.writeopts)
+	err := qs.db.Write(qs.writeopts, batch)
 	if err != nil {
 		glog.Error("Couldn't write to DB for tripleset.")
 		return
@@ -307,7 +285,7 @@ func (qs *TripleStore) Close() {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, qs.size)
 	if err == nil {
-		werr := qs.db.Put([]byte("__size"), buf.Bytes(), qs.writeopts)
+		werr := qs.db.Put(qs.writeopts, []byte("__size"), buf.Bytes())
 		if werr != nil {
 			glog.Error("Couldn't write size before closing!")
 		}
@@ -320,12 +298,12 @@ func (qs *TripleStore) Close() {
 
 func (qs *TripleStore) Quad(k graph.Value) quad.Quad {
 	var triple quad.Quad
-	b, err := qs.db.Get(k.(Token), qs.readopts)
-	if err != nil && err != leveldb.ErrNotFound {
+	b, err := qs.db.Get(qs.readopts, k.(Token))
+	if err != nil && err != rocksErrNotFound {
 		glog.Error("Error: couldn't get triple from DB.")
 		return quad.Quad{}
 	}
-	if err == leveldb.ErrNotFound {
+	if err == rocksErrNotFound {
 		// No harm, no foul.
 		return quad.Quad{}
 	}
@@ -356,15 +334,16 @@ func (qs *TripleStore) valueData(value_key []byte) ValueData {
 	if glog.V(3) {
 		glog.V(3).Infof("%s %v", string(value_key[0]), value_key)
 	}
-	b, err := qs.db.Get(value_key, qs.readopts)
-	if err != nil && err != leveldb.ErrNotFound {
-		glog.Errorln("Error: couldn't get value from DB")
-		return out
+	b, err := qs.db.Get(qs.readopts, value_key)
+	if err != nil {
+		// ToDo
+		glog.Errorln("Error: couldn't get value: " + err.Error())
+		return ValueData{}
 	}
-	if b != nil && err != leveldb.ErrNotFound {
+	if b != nil {
 		err = json.Unmarshal(b, &out)
 		if err != nil {
-			glog.Errorln("Error: couldn't reconstruct value")
+			glog.Errorln("Error: couldn't reconstruct value: " + err.Error())
 			return ValueData{}
 		}
 	}
@@ -388,11 +367,11 @@ func (qs *TripleStore) SizeOf(k graph.Value) int64 {
 
 func (qs *TripleStore) getSize() {
 	var size int64
-	b, err := qs.db.Get([]byte("__size"), qs.readopts)
-	if err != nil && err != leveldb.ErrNotFound {
+	b, err := qs.db.Get(qs.readopts, []byte("__size"))
+	if err != nil && err != rocksErrNotFound {
 		panic("Couldn't read size " + err.Error())
 	}
-	if err == leveldb.ErrNotFound {
+	if err == rocksErrNotFound {
 		// Must be a new database. Cool
 		qs.size = 0
 		return
@@ -410,14 +389,9 @@ func (qs *TripleStore) SizeOfPrefix(pre []byte) (int64, error) {
 	copy(limit, pre)
 	end := len(limit) - 1
 	limit[end]++
-	ranges := make([]util.Range, 1)
-	ranges[0].Start = pre
-	ranges[0].Limit = limit
-	sizes, err := qs.db.SizeOf(ranges)
-	if err == nil {
-		return (int64(sizes[0]) >> 6) + 1, nil
-	}
-	return 0, nil
+	ranges := []rocks.Range{rocks.Range{pre, limit}}
+	sizes := qs.db.GetApproximateSizes(ranges)
+	return (int64(sizes[0]) >> 6) + 1, nil
 }
 
 func (qs *TripleStore) TripleIterator(d quad.Direction, val graph.Value) graph.Iterator {
@@ -462,3 +436,4 @@ func compareBytes(a, b graph.Value) bool {
 func (qs *TripleStore) FixedIterator() graph.FixedIterator {
 	return iterator.NewFixedIteratorWithCompare(compareBytes)
 }
+

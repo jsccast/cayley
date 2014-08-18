@@ -18,8 +18,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/cayley/graph"
-	"github.com/google/cayley/quad"
+	"github.com/jsccast/cayley/graph"
+	"github.com/jsccast/cayley/quad"
 )
 
 func hasaWithTag(ts graph.TripleStore, tag string, target string) *HasA {

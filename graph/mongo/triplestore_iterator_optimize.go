@@ -15,8 +15,8 @@
 package mongo
 
 import (
-	"github.com/google/cayley/graph"
-	"github.com/google/cayley/graph/iterator"
+	"github.com/jsccast/cayley/graph"
+	"github.com/jsccast/cayley/graph/iterator"
 )
 
 func (ts *TripleStore) OptimizeIterator(it graph.Iterator) (graph.Iterator, bool) {

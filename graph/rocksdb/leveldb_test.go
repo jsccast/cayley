@@ -1,4 +1,5 @@
-// Copyright 2014 The Cayley Authors. All rights reserved.
+// Portions Copyright 2014 The Cayley Authors. All rights reserved.
+// Portions Copyright 2014 Comcast Cable Communications Management, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package leveldb
+package rocksdb
 
 import (
 	"io/ioutil"
@@ -95,23 +96,23 @@ func TestCreateDatabase(t *testing.T) {
 	}
 	t.Log(tmpDir)
 
-	err = createNewLevelDB(tmpDir, nil)
+	err = createNewRocksdb(tmpDir, nil)
 	if err != nil {
-		t.Fatal("Failed to create LevelDB database.")
+		t.Fatal("Failed to create Rocksdb database.")
 	}
 
 	qs, err := newTripleStore(tmpDir, nil)
 	if qs == nil || err != nil {
-		t.Error("Failed to create leveldb TripleStore.")
+		t.Error("Failed to create rocksdb TripleStore.")
 	}
 	if s := qs.Size(); s != 0 {
 		t.Errorf("Unexpected size, got:%d expected:0", s)
 	}
 	qs.Close()
 
-	err = createNewLevelDB("/dev/null/some terrible path", nil)
+	err = createNewRocksdb("/dev/null/some terrible path", nil)
 	if err == nil {
-		t.Errorf("Created LevelDB database for bad path.")
+		t.Errorf("Created Rocksdb database for bad path.")
 	}
 
 	os.RemoveAll(tmpDir)
@@ -125,14 +126,14 @@ func TestLoadDatabase(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	t.Log(tmpDir)
 
-	err = createNewLevelDB(tmpDir, nil)
+	err = createNewRocksdb(tmpDir, nil)
 	if err != nil {
-		t.Fatal("Failed to create LevelDB database.")
+		t.Fatal("Failed to create Rocksdb database.")
 	}
 
 	qs, err := newTripleStore(tmpDir, nil)
 	if qs == nil || err != nil {
-		t.Error("Failed to create leveldb TripleStore.")
+		t.Error("Failed to create rocksdb TripleStore.")
 	}
 
 	qs.AddTriple(quad.Quad{"Something", "points_to", "Something Else", "context"})
@@ -146,18 +147,18 @@ func TestLoadDatabase(t *testing.T) {
 	}
 	qs.Close()
 
-	err = createNewLevelDB(tmpDir, nil)
+	err = createNewRocksdb(tmpDir, nil)
 	if err != nil {
-		t.Fatal("Failed to create LevelDB database.")
+		t.Fatal("Failed to create Rocksdb database.")
 	}
 	qs, err = newTripleStore(tmpDir, nil)
 	if qs == nil || err != nil {
-		t.Error("Failed to create leveldb TripleStore.")
+		t.Error("Failed to create rocksdb TripleStore.")
 	}
 
 	ts2, didConvert := qs.(*TripleStore)
 	if !didConvert {
-		t.Errorf("Could not convert from generic to LevelDB TripleStore")
+		t.Errorf("Could not convert from generic to Rocksdb TripleStore")
 	}
 
 	qs.AddTripleSet(makeTripleSet())
@@ -187,14 +188,14 @@ func TestIterator(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 	t.Log(tmpDir)
 
-	err = createNewLevelDB(tmpDir, nil)
+	err = createNewRocksdb(tmpDir, nil)
 	if err != nil {
-		t.Fatal("Failed to create LevelDB database.")
+		t.Fatal("Failed to create Rocksdb database.")
 	}
 
 	qs, err := newTripleStore(tmpDir, nil)
 	if qs == nil || err != nil {
-		t.Error("Failed to create leveldb TripleStore.")
+		t.Error("Failed to create rocksdb TripleStore.")
 	}
 	qs.AddTripleSet(makeTripleSet())
 	var it graph.Iterator
@@ -280,14 +281,14 @@ func TestSetIterator(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir(os.TempDir(), "cayley_test")
 	t.Log(tmpDir)
 	defer os.RemoveAll(tmpDir)
-	err := createNewLevelDB(tmpDir, nil)
+	err := createNewRocksdb(tmpDir, nil)
 	if err != nil {
 		t.Fatalf("Failed to create working directory")
 	}
 
 	qs, err := newTripleStore(tmpDir, nil)
 	if qs == nil || err != nil {
-		t.Error("Failed to create leveldb TripleStore.")
+		t.Error("Failed to create rocksdb TripleStore.")
 	}
 	defer qs.Close()
 
@@ -395,13 +396,13 @@ func TestOptimize(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir(os.TempDir(), "cayley_test")
 	t.Log(tmpDir)
 	defer os.RemoveAll(tmpDir)
-	err := createNewLevelDB(tmpDir, nil)
+	err := createNewRocksdb(tmpDir, nil)
 	if err != nil {
 		t.Fatalf("Failed to create working directory")
 	}
 	qs, err := newTripleStore(tmpDir, nil)
 	if qs == nil || err != nil {
-		t.Error("Failed to create leveldb TripleStore.")
+		t.Error("Failed to create rocksdb TripleStore.")
 	}
 	qs.AddTripleSet(makeTripleSet())
 

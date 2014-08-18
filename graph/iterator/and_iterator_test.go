@@ -17,7 +17,7 @@ package iterator
 import (
 	"testing"
 
-	"github.com/google/cayley/graph"
+	"github.com/jsccast/cayley/graph"
 )
 
 // Make sure that tags work on the And.

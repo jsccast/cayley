@@ -27,7 +27,7 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/google/cayley/quad"
+	"github.com/jsccast/cayley/quad"
 )
 
 // Decoder implements N-Quad document parsing according to the RDF

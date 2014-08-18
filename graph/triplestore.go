@@ -25,7 +25,7 @@ import (
 	"errors"
 
 	"github.com/barakmich/glog"
-	"github.com/google/cayley/quad"
+	"github.com/jsccast/cayley/quad"
 )
 
 // Value defines an opaque "triple store value" type. However the backend wishes
@@ -124,6 +124,18 @@ func (d Options) StringKey(key string) (string, bool) {
 	return "", false
 }
 
+func (d Options) BoolKey(key string) (bool, bool) {
+	if val, ok := d[key]; ok {
+		switch vv := val.(type) {
+		case bool:
+			return vv, true
+		default:
+			glog.Fatalln("Invalid", key, "parameter type from config.")
+		}
+	}
+	return false, false
+}
+
 var ErrCannotBulkLoad = errors.New("triplestore: cannot bulk load")
 
 type BulkLoader interface {
@@ -182,3 +194,4 @@ func TripleStores() []string {
 	}
 	return t
 }
+

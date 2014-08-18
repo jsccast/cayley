@@ -20,7 +20,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/google/cayley/graph"
+	"github.com/jsccast/cayley/graph"
 )
 
 var nextIteratorID uint64

@@ -1,4 +1,5 @@
-// Copyright 2014 The Cayley Authors. All rights reserved.
+// Portions Copyright 2014 The Cayley Authors. All rights reserved.
+// Portions Copyright 2014 Comcast Cable Communications Management, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package leveldb
+package rocksdb
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
+	"fmt"
 
-	ldbit "github.com/syndtr/goleveldb/leveldb/iterator"
-	"github.com/syndtr/goleveldb/leveldb/opt"
+	rocks "github.com/jsccast/rocksdb"
 
 	"github.com/jsccast/cayley/graph"
 	"github.com/jsccast/cayley/graph/iterator"
@@ -33,21 +33,19 @@ type AllIterator struct {
 	prefix []byte
 	dir    quad.Direction
 	open   bool
-	iter   ldbit.Iterator
+	iter   *rocks.Iterator
 	ts     *TripleStore
-	ro     *opt.ReadOptions
+	ro     *rocks.ReadOptions
 	result graph.Value
 }
 
 func NewAllIterator(prefix string, d quad.Direction, ts *TripleStore) *AllIterator {
-	opts := &opt.ReadOptions{
-		DontFillCache: true,
-	}
+	opts := RocksReadOpts(nil)
 
 	it := AllIterator{
 		uid:    iterator.NextUID(),
 		ro:     opts,
-		iter:   ts.db.NewIterator(nil, opts),
+		iter:   ts.db.NewIterator(opts),
 		prefix: []byte(prefix),
 		dir:    d,
 		open:   true,
@@ -59,7 +57,7 @@ func NewAllIterator(prefix string, d quad.Direction, ts *TripleStore) *AllIterat
 		// FIXME(kortschak) What are the semantics here? Is this iterator usable?
 		// If not, we should return nil *Iterator and an error.
 		it.open = false
-		it.iter.Release()
+		it.iter.Close()
 	}
 
 	return &it
@@ -71,13 +69,13 @@ func (it *AllIterator) UID() uint64 {
 
 func (it *AllIterator) Reset() {
 	if !it.open {
-		it.iter = it.ts.db.NewIterator(nil, it.ro)
+		it.iter = it.ts.db.NewIterator(it.ro)
 		it.open = true
 	}
 	it.iter.Seek(it.prefix)
 	if !it.iter.Valid() {
 		it.open = false
-		it.iter.Release()
+		it.iter.Close()
 	}
 }
 
@@ -145,7 +143,7 @@ func (it *AllIterator) Contains(v graph.Value) bool {
 
 func (it *AllIterator) Close() {
 	if it.open {
-		it.iter.Release()
+		it.iter.Close()
 		it.open = false
 	}
 }
@@ -161,7 +159,7 @@ func (it *AllIterator) Size() (int64, bool) {
 
 func (it *AllIterator) DebugString(indent int) string {
 	size, _ := it.Size()
-	return fmt.Sprintf("%s(%s tags: %v leveldb size:%d %s %p)", strings.Repeat(" ", indent), it.Type(), it.tags.Tags(), size, it.dir, it)
+	return fmt.Sprintf("%s(%s tags: %v rocksdb size:%d %s %p)", strings.Repeat(" ", indent), it.Type(), it.tags.Tags(), size, it.dir, it)
 }
 
 func (it *AllIterator) Type() graph.Type { return graph.All }

@@ -19,9 +19,9 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/google/cayley/graph"
-	"github.com/google/cayley/graph/iterator"
-	"github.com/google/cayley/quad"
+	"github.com/jsccast/cayley/graph"
+	"github.com/jsccast/cayley/graph/iterator"
+	"github.com/jsccast/cayley/quad"
 )
 
 // This is a simple test graph.

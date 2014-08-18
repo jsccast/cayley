@@ -19,12 +19,12 @@ package main
 import (
 	"github.com/barakmich/glog"
 
-	"github.com/google/cayley/config"
-	"github.com/google/cayley/db"
-	"github.com/google/cayley/graph"
-	"github.com/google/cayley/http"
+	"github.com/jsccast/cayley/config"
+	"github.com/jsccast/cayley/db"
+	"github.com/jsccast/cayley/graph"
+	"github.com/jsccast/cayley/http"
 
-	_ "github.com/google/cayley/graph/memstore"
+	_ "github.com/jsccast/cayley/graph/memstore"
 )
 
 func init() {
